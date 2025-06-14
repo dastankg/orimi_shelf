@@ -57,9 +57,9 @@ def get_photo_keyboard() -> ReplyKeyboardMarkup:
 def get_photo_type_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📸 Кофе до")],
-            [KeyboardButton(text="📸 Чай до")],
-            [KeyboardButton(text="📸 3в1 до")],
+            [KeyboardButton(text="📸 Кофе")],
+            [KeyboardButton(text="📸 Чай")],
+            [KeyboardButton(text="📸 3в1")],
             [KeyboardButton(text="🔙 Назад")],
         ],
         resize_keyboard=True,
