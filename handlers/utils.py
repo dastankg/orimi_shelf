@@ -23,7 +23,7 @@ async def get_user_profile(telegram_id: int) -> dict[str, Any] | None:
 async def get_shop_by_phone(phone_number: str):
     if not phone_number.startswith("+"):
         phone_number = "+" + phone_number
-    api_url = f"http://localhost:8000/api/shops/{phone_number}"
+    api_url = f"{os.getenv('WEB_SERVICE_URL')}/api/shops/{phone_number}"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(api_url) as response:
@@ -45,14 +45,14 @@ async def save_user_profile(telegram_id: int, phone_number: str) -> bool:
     user_data = {"phone_number": phone_number}
     await redis_client.set(key, json.dumps(user_data))
     try:
-        api_url = f"http://localhost:8000/api/telephones-get/{phone_number}/"
+        api_url = f"{os.getenv('WEB_SERVICE_URL')}/api/telephones-get/{phone_number}/"
         async with aiohttp.ClientSession() as session:
             async with session.get(api_url) as response:
                 if response.status == 200:
                     data = await response.json()
                     if "id" in data:
                         id = data["id"]
-                        api_url = f"http://localhost:8000/api/telephones/{id}/"
+                        api_url = f"{os.getenv('WEB_SERVICE_URL')}/api/telephones/{id}/"
                         update_data = {"telegram_id": telegram_id}
                         async with session.patch(api_url, json=update_data) as update_response:
                             if update_response.status == 200:
@@ -224,7 +224,7 @@ async def get_address_from_coordinates(latitude, longitude):
 async def save_file_to_post(shop_id, relative_path, latitude=None, longitude=None):
     try:
         file_path = f"media/{relative_path}"
-        api_url = "http://localhost:8000/api/shop-posts/create/"
+        api_url = f"{os.getenv('WEB_SERVICE_URL')}/shop-posts/create/"
         data = {"shop_id": shop_id, "latitude": latitude, "longitude": longitude}
         async with aiohttp.ClientSession() as session:
             with open(file_path, "rb") as image_file:
