@@ -4,4 +4,18 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "aiogram>=3.20.0.post0",
+    "apscheduler>=3.11.0",
+    "asgiref>=3.8.1",
+    "python-dotenv>=1.1.0",
+    "pytz>=2025.2",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+[tool.ruff.lint.isort]
+known-first-party = ["orimi_shelf"]
