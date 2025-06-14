@@ -7,8 +7,11 @@ from aiogram.types import (
 def get_main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📷 Загрузить фото")],
-            [KeyboardButton(text="👤 Мой профиль"), KeyboardButton(text="❓ Помощь")],
+            [
+                KeyboardButton(text="📷 Загрузить фото"),
+                KeyboardButton(text="👤 Мой профиль"),
+                KeyboardButton(text="❓ Помощь"),
+            ],
         ],
         resize_keyboard=True,
     )
@@ -16,9 +19,7 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
 
 def get_contact_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="📱 Поделиться контактом", request_contact=True)]
-        ],
+        keyboard=[[KeyboardButton(text="📱 Поделиться контактом", request_contact=True)]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -56,9 +57,9 @@ def get_photo_keyboard() -> ReplyKeyboardMarkup:
 def get_photo_type_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📸 ТМ до")],
-            [KeyboardButton(text="📸 ТМ после")],
-            [KeyboardButton(text="📸 ДПМ")],
+            [KeyboardButton(text="📸 Кофе до")],
+            [KeyboardButton(text="📸 Чай до")],
+            [KeyboardButton(text="📸 3в1 до")],
             [KeyboardButton(text="🔙 Назад")],
         ],
         resize_keyboard=True,
