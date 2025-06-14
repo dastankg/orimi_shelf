@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 async def fetch_owner_telephones():
-    api_url = "http://194.87.161.113:8000/api/telephones/"
+    api_url = "http://localhost:8000/api/telephones/"
 
     try:
         async with aiohttp.ClientSession() as session:

@@ -1,25 +1,19 @@
 import asyncio
-import logging
 import os
-import time
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
 from config.config import load_config
-from keyboards.menu import set_menu
-from services.notifaction import setup_scheduler
 from handlers.user_handlers import router as user_router
+from keyboards.menu import set_menu
+from services.logger import logger
+from services.notifaction import setup_scheduler
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(funcName)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
-logger = logging.getLogger(__name__)
-logging.Formatter.converter = time.gmtime
+
 config = load_config()
 
 
