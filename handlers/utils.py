@@ -21,6 +21,8 @@ async def get_user_profile(telegram_id: int) -> dict[str, Any] | None:
 
 
 async def get_shop_by_phone(phone_number: str):
+    if not phone_number.startswith("+"):
+        phone_number = "+" + phone_number
     api_url = f"http://localhost:8000/api/shops/{phone_number}"
     try:
         async with aiohttp.ClientSession() as session:
@@ -37,26 +39,24 @@ async def get_shop_by_phone(phone_number: str):
 
 
 async def save_user_profile(telegram_id: int, phone_number: str) -> bool:
+    if not phone_number.startswith("+"):
+        phone_number = "+" + phone_number
     key = f"user:{telegram_id}"
     user_data = {"phone_number": phone_number}
     await redis_client.set(key, json.dumps(user_data))
     try:
-        api_url = f"http://localhost:8000/api/telephones-get/{phone_number}"
+        api_url = f"http://localhost:8000/api/telephones-get/{phone_number}/"
         async with aiohttp.ClientSession() as session:
             async with session.get(api_url) as response:
                 if response.status == 200:
                     data = await response.json()
                     if "id" in data:
                         id = data["id"]
-                        api_url = f"http://localhost:8000/api/telephones/{id}"
+                        api_url = f"http://localhost:8000/api/telephones/{id}/"
                         update_data = {"telegram_id": telegram_id}
-                        async with session.patch(
-                            api_url, json=update_data
-                        ) as update_response:
+                        async with session.patch(api_url, json=update_data) as update_response:
                             if update_response.status == 200:
-                                logger.info(
-                                    f"Successfully updated telegram_id for phone {phone_number}"
-                                )
+                                logger.info(f"Successfully updated telegram_id for phone {phone_number}")
                                 return True
                             else:
                                 logger.error(
@@ -90,14 +90,10 @@ def check_photo_creation_time(file_path):
                     break
 
             if not date_time_str:
-                logger.warning(
-                    f"Данные о времени создания отсутствуют в HEIC: {file_path}"
-                )
+                logger.warning(f"Данные о времени создания отсутствуют в HEIC: {file_path}")
                 return False
 
-            match = re.match(
-                r"(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})", date_time_str
-            )
+            match = re.match(r"(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})", date_time_str)
             if not match:
                 logger.warning(f"Неизвестный формат даты в HEIC: {date_time_str}")
                 return False
@@ -108,34 +104,28 @@ def check_photo_creation_time(file_path):
             current_time = datetime.now()
             time_diff = current_time - photo_time
 
-            return time_diff <= timedelta(minutes=3)
+            return time_diff <= timedelta(minutes=5)
 
         else:
             try:
                 img = Image.open(file_path)
 
                 if not hasattr(img, "_getexif") or not img._getexif():
-                    logger.warning(
-                        f"EXIF данные отсутствуют в изображении: {file_path}"
-                    )
+                    logger.warning(f"EXIF данные отсутствуют в изображении: {file_path}")
                     return False
 
                 exif_dict = piexif.load(img.info["exif"])
 
                 if "0th" in exif_dict and piexif.ImageIFD.DateTime in exif_dict["0th"]:
-                    date_time_str = exif_dict["0th"][piexif.ImageIFD.DateTime].decode(
-                        "utf-8"
-                    )
+                    date_time_str = exif_dict["0th"][piexif.ImageIFD.DateTime].decode("utf-8")
                     photo_time = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
 
                     current_time = datetime.now()
                     time_diff = current_time - photo_time
 
-                    return time_diff <= timedelta(minutes=3)
+                    return time_diff <= timedelta(minutes=5)
                 else:
-                    logger.warning(
-                        f"Данные о времени создания отсутствуют в EXIF: {file_path}"
-                    )
+                    logger.warning(f"Данные о времени создания отсутствуют в EXIF: {file_path}")
                     return False
 
             except Exception as e:
@@ -179,10 +169,10 @@ def get_heic_metadata(file_path):
 
 async def download_file(file_url: str, filename: str):
     try:
-        os.makedirs("media/documents", exist_ok=True)
+        os.makedirs("media/shelf", exist_ok=True)
 
-        save_path = f"media/documents/{filename}"
-        relative_path = f"documents/{filename}"
+        save_path = f"media/shelf/{filename}"
+        relative_path = f"shelf/{filename}"
 
         async with aiohttp.ClientSession() as session:
             async with session.get(file_url) as response:
@@ -201,7 +191,7 @@ async def download_file(file_url: str, filename: str):
                 if os.path.exists(save_path):
                     os.remove(save_path)
                 raise Exception(
-                    "Фото не содержит необходимые метаданные или было сделано более 3 минут назад."
+                    "Фото не содержит необходимые метаданные или было сделано более 5 минут назад."
                 )
 
         return relative_path
@@ -229,3 +219,29 @@ async def get_address_from_coordinates(latitude, longitude):
     except Exception as e:
         logger.error(f"Error in get_address_from_coordinates: {e}")
         return None
+
+
+async def save_file_to_post(shop_id, relative_path, latitude=None, longitude=None):
+    try:
+        file_path = f"media/{relative_path}"
+        api_url = "http://localhost:8000/api/shop-posts/create/"
+        data = {"shop_id": shop_id, "latitude": latitude, "longitude": longitude}
+        async with aiohttp.ClientSession() as session:
+            with open(file_path, "rb") as image_file:
+                form_data = aiohttp.FormData()
+                for key, value in data.items():
+                    form_data.add_field(key, str(value))
+
+                form_data.add_field("image", image_file, filename="image.png")
+
+                async with session.post(api_url, data=form_data) as response:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                    if response.status == 201:
+                        return True
+                    else:
+                        return False
+
+    except Exception as e:
+        logger.error(f"Error in save_file_to_post: {e}")
+        raise

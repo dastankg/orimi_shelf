@@ -45,9 +45,7 @@ async def send_monthly_notification(bot):
             is_owner = telephone.get("is_owner", False)
 
             if is_owner and chat_id:
-                await bot.send_message(
-                    chat_id=chat_id, text=message, reply_markup=keyboard
-                )
+                await bot.send_message(chat_id=chat_id, text=message, reply_markup=keyboard)
                 logger.info(f"Опрос отправлен {number}")
         except Exception as e:
             number = telephone.get("number", "Unknown")

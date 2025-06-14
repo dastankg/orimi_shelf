@@ -1,5 +1,4 @@
 import asyncio
-import os
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -10,9 +9,6 @@ from handlers.user_handlers import router as user_router
 from keyboards.menu import set_menu
 from services.logger import logger
 from services.notifaction import setup_scheduler
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
-
 
 config = load_config()
 
