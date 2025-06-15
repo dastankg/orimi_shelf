@@ -247,7 +247,7 @@ async def handle_file(message: Message, bot: Bot, state: FSMContext):
                 message_id=status_message.message_id,
             )
 
-            await message.answer(reply_markup=get_main_keyboard())
+            await message.answer(text='Хотите загрузить еще фото ?', reply_markup=get_main_keyboard())
 
         except Exception as e:
             error_message = str(e)
