@@ -187,6 +187,7 @@ async def back_command(message: Message, state: FSMContext):
 
 
 @router.message(F.content_type == ContentType.DOCUMENT)
+@router.message(UserState.waiting_for_photo)
 async def handle_file(message: Message, bot: Bot, state: FSMContext):
     telegram_id = message.from_user.id
     logger.info(f"Получен файл от user_id={telegram_id}")
