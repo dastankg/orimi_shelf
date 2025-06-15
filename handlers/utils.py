@@ -1,10 +1,12 @@
+import asyncio
 import json
 import os
 import re
 import subprocess
+import uuid
 from datetime import datetime, timedelta
 from typing import Any
-
+import pillow_heif
 import aiohttp
 import piexif
 from asgiref.sync import sync_to_async
@@ -182,9 +184,10 @@ def get_heic_metadata(file_path):
 async def download_file(file_url: str, filename: str):
     try:
         os.makedirs("media/shelf", exist_ok=True)
-
-        save_path = f"media/shelf/{filename}"
-        relative_path = f"shelf/{filename}"
+        _, ext = os.path.splitext(filename)
+        unique_filename = f"{uuid.uuid4()}{ext}"
+        save_path = f"media/shelf/{unique_filename}"
+        relative_path = f"shelf/{unique_filename}"
 
         async with aiohttp.ClientSession() as session:
             async with session.get(file_url) as response:
@@ -203,6 +206,10 @@ async def download_file(file_url: str, filename: str):
                 if os.path.exists(save_path):
                     os.remove(save_path)
                 raise Exception("Фото не содержит необходимые метаданные или было сделано более 5 минут назад.")
+
+            if file_extension in ['.heic', '.heif']:
+                new_path = await convert_heic_to_jpeg(save_path)
+                relative_path = f"shelf/{os.path.basename(new_path)}"
 
         return relative_path
     except Exception as e:
@@ -236,21 +243,83 @@ async def save_file_to_post(shop_id, relative_path, latitude=None, longitude=Non
         file_path = f"media/{relative_path}"
         api_url = f"{os.getenv('WEB_SERVICE_URL')}/api/shop-posts/create/"
         data = {"shop_id": shop_id, "latitude": latitude, "longitude": longitude, "post_type": type_photo}
+
+        logger.info(f"Отправка файла: {file_path}")
+        logger.info(f"Данные: {data}")
+
         async with aiohttp.ClientSession() as session:
             with open(file_path, "rb") as image_file:
                 form_data = aiohttp.FormData()
                 for key, value in data.items():
-                    form_data.add_field(key, str(value))
-                print(data)
-                form_data.add_field("image", image_file, filename="image.png")
+                    if value is not None:
+                        form_data.add_field(key, str(value))
+
+                form_data.add_field("image", image_file, filename=os.path.basename(file_path))
+
                 async with session.post(api_url, data=form_data) as response:
+                    response_text = await response.text()
+
+                    # Очистка файла
                     if os.path.exists(file_path):
                         os.remove(file_path)
+
                     if response.status == 201:
-                        return True
+                        logger.info("Файл успешно загружен")
+                        return {"success": True, "data": json.loads(response_text) if response_text else None}
                     else:
-                        return False
+                        logger.error(f"Ошибка при создании поста. Статус: {response.status}, Ответ: {response_text}")
+                        return {"success": False, "status": response.status, "error": response_text}
 
     except Exception as e:
-        logger.error(f"Error in save_file_to_post: {e}")
+        logger.error(f"Ошибка в save_file_to_post: {e}")
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        return {"success": False, "error": str(e)}
+
+
+async def convert_heic_to_jpeg(heic_path):
+    try:
+        if not heic_path.lower().endswith(('.heic', '.heif')):
+            return heic_path
+
+        jpeg_path = os.path.splitext(heic_path)[0] + '.jpg'
+
+        try:
+            pillow_heif.register_heif_opener()
+            with Image.open(heic_path) as img:
+                img.convert('RGB').save(jpeg_path, 'JPEG', quality=95, optimize=True)
+
+            logger.info(f"HEIC конвертирован через pillow-heif: {heic_path} -> {jpeg_path}")
+
+        except (ImportError, Exception) as e:
+            logger.warning(f"Pillow-heif не сработал: {e}. Пробуем ImageMagick...")
+
+            cmd = ['convert', heic_path, jpeg_path]
+
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            stdout, stderr = await process.communicate()
+
+            if process.returncode != 0:
+                error_msg = stderr.decode() if stderr else "Неизвестная ошибка"
+                raise Exception(f"ImageMagick failed: {error_msg}")
+
+        if not os.path.exists(jpeg_path):
+            raise Exception(f"Не удалось создать JPEG файл: {jpeg_path}")
+
+        if os.path.getsize(jpeg_path) == 0:
+            raise Exception("Созданный JPEG файл пустой")
+
+        if os.path.exists(heic_path):
+            os.remove(heic_path)
+            logger.info(f"Удален оригинальный HEIC файл: {heic_path}")
+
+        return jpeg_path
+
+    except Exception as e:
+        logger.error(f"Ошибка в convert_heic_to_jpeg: {e}")
         raise
