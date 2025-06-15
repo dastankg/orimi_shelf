@@ -20,6 +20,3 @@ services:
       - .env
     ports:
       - "8001:8001"
-networks:
-  shared-network:
-    external: true
