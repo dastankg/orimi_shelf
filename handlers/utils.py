@@ -9,6 +9,7 @@ from typing import Any
 import pillow_heif
 import aiohttp
 import piexif
+import pytz
 from asgiref.sync import sync_to_async
 from PIL import Image
 
@@ -116,8 +117,8 @@ def check_photo_creation_time(file_path):
 
             year, month, day, hour, minute, second = map(int, match.groups())
             photo_time = datetime(year, month, day, hour, minute, second)
-
-            current_time = datetime.now()
+            user_timezone = pytz.timezone('Asia/Bishkek')
+            current_time = datetime.now(user_timezone)
             time_diff = current_time - photo_time
 
             return time_diff <= timedelta(minutes=5)
