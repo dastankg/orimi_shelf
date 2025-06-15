@@ -14,6 +14,22 @@ from config.redis_connect import redis_client
 from services.logger import logger
 
 
+async def save_report(shop_id, ans):
+    api_url = f"{os.getenv('WEB_SERVICE_URL')}/api/reports/"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(api_url, json={"shop": shop_id, "answer": ans}) as response:
+                if response.status == 201:
+                    await response.json()
+                    return
+                else:
+                    logger.error(f"API request failed with status {response.status}")
+                    return None
+
+    except Exception:
+        return None
+
+
 async def get_user_profile(telegram_id: int) -> dict[str, Any] | None:
     key = f"user:{telegram_id}"
     data = await redis_client.get(key)
@@ -53,15 +69,13 @@ async def save_user_profile(telegram_id: int, phone_number: str) -> bool:
                     if "id" in data:
                         id = data["id"]
                         api_url = f"{os.getenv('WEB_SERVICE_URL')}/api/telephones/{id}/"
-                        update_data = {"telegram_id": telegram_id}
+                        update_data = {"chat_id": telegram_id}
                         async with session.patch(api_url, json=update_data) as update_response:
                             if update_response.status == 200:
                                 logger.info(f"Successfully updated telegram_id for phone {phone_number}")
                                 return True
                             else:
-                                logger.error(
-                                    f"Failed to update telegram_id. Status: {update_response.status}"
-                                )
+                                logger.error(f"Failed to update telegram_id. Status: {update_response.status}")
                                 return False
                     return False
                 else:
@@ -142,9 +156,7 @@ def get_heic_metadata(file_path):
         try:
             subprocess.run(["exiftool", "-ver"], capture_output=True, check=True)
         except (subprocess.SubprocessError, FileNotFoundError):
-            logger.error(
-                "ExifTool не установлен. Установите с помощью 'sudo dnf install perl-Image-ExifTool'"
-            )
+            logger.error("ExifTool не установлен. Установите с помощью 'sudo dnf install perl-Image-ExifTool'")
             return None
 
         result = subprocess.run(
@@ -190,9 +202,7 @@ async def download_file(file_url: str, filename: str):
             if not is_valid:
                 if os.path.exists(save_path):
                     os.remove(save_path)
-                raise Exception(
-                    "Фото не содержит необходимые метаданные или было сделано более 5 минут назад."
-                )
+                raise Exception("Фото не содержит необходимые метаданные или было сделано более 5 минут назад.")
 
         return relative_path
     except Exception as e:
@@ -221,19 +231,18 @@ async def get_address_from_coordinates(latitude, longitude):
         return None
 
 
-async def save_file_to_post(shop_id, relative_path, latitude=None, longitude=None):
+async def save_file_to_post(shop_id, relative_path, latitude=None, longitude=None, type_photo=None):
     try:
         file_path = f"media/{relative_path}"
-        api_url = f"{os.getenv('WEB_SERVICE_URL')}/shop-posts/create/"
-        data = {"shop_id": shop_id, "latitude": latitude, "longitude": longitude}
+        api_url = f"{os.getenv('WEB_SERVICE_URL')}/api/shop-posts/create/"
+        data = {"shop_id": shop_id, "latitude": latitude, "longitude": longitude, "post_type": type_photo}
         async with aiohttp.ClientSession() as session:
             with open(file_path, "rb") as image_file:
                 form_data = aiohttp.FormData()
                 for key, value in data.items():
                     form_data.add_field(key, str(value))
-
+                print(data)
                 form_data.add_field("image", image_file, filename="image.png")
-
                 async with session.post(api_url, data=form_data) as response:
                     if os.path.exists(file_path):
                         os.remove(file_path)
