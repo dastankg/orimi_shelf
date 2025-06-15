@@ -1,5 +1,6 @@
 import os
 import uuid
+from datetime import datetime, timezone
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ContentType
@@ -13,6 +14,7 @@ from handlers.utils import (
     get_shop_by_phone,
     get_user_profile,
     save_file_to_post,
+    save_report,
     save_user_profile,
 )
 from keyboards.keyboards import (
@@ -76,9 +78,7 @@ async def cmd_profile(message: Message, state: FSMContext):
             reply_markup=get_main_keyboard(),
         )
     else:
-        await message.answer(
-            f"📱 Телефон: {user['phone_number']}\n\n❗ Этот номер не найден в системе магазинов."
-        )
+        await message.answer(f"📱 Телефон: {user['phone_number']}\n\n❗ Этот номер не найден в системе магазинов.")
 
 
 @router.message(F.content_type == ContentType.CONTACT)
@@ -201,7 +201,7 @@ async def handle_file(message: Message, bot: Bot, state: FSMContext):
 
         state_data = await state.get_data()
         location = state_data.get("location")
-
+        type_photo = state_data.get("type_photo")
         if not location:
             logger.info(f"Нет геолокации для user_id={telegram_id}")
             await message.answer("Сначала отправьте геолокацию.")
@@ -225,7 +225,7 @@ async def handle_file(message: Message, bot: Bot, state: FSMContext):
         file_url = f"https://api.telegram.org/file/bot{os.getenv('SECRET_KEY')}/{file_path}"
 
         status_message = await message.answer("⏳ Загрузка файла...")
-
+        await state.set_state(UserState.authorized)
         try:
             relative_path = await download_file(file_url, file_name)
 
@@ -234,12 +234,12 @@ async def handle_file(message: Message, bot: Bot, state: FSMContext):
                 relative_path,
                 latitude=location["latitude"],
                 longitude=location["longitude"],
+                type_photo=type_photo,
             )
 
             logger.info(f"Файл сохранен: {file_name} для магазина {shop['shop_name']}")
 
             await state.update_data(location=None)
-            await state.set_state(UserState.authorized)
 
             await bot.edit_message_text(
                 f"✅ Файл успешно сохранен и связан с магазином '{shop['shop_name']}'.",
@@ -247,7 +247,7 @@ async def handle_file(message: Message, bot: Bot, state: FSMContext):
                 message_id=status_message.message_id,
             )
 
-            await message.answer("Хотите загрузить еще фото ?", reply_markup=get_main_keyboard())
+            await message.answer(reply_markup=get_main_keyboard())
 
         except Exception as e:
             error_message = str(e)
@@ -259,10 +259,7 @@ async def handle_file(message: Message, bot: Bot, state: FSMContext):
                     chat_id=status_message.chat.id,
                     message_id=status_message.message_id,
                 )
-            elif (
-                "EXIF данные отсутствуют" in error_message
-                or "метаданные отсутствуют" in error_message.lower()
-            ):
+            elif "EXIF данные отсутствуют" in error_message or "метаданные отсутствуют" in error_message.lower():
                 await bot.edit_message_text(
                     "❌ Фото не содержит необходимые метаданные (EXIF). Пожалуйста, сделайте фото через камеру "
                     "телефона.",
@@ -281,6 +278,39 @@ async def handle_file(message: Message, bot: Bot, state: FSMContext):
         await message.answer("❗ Неизвестная ошибка.")
 
 
+@router.callback_query(lambda c: c.data in ["payment_yes", "payment_no"])
+async def handle_payment_callback(callback_query):
+    callback_data = callback_query.data
+    user_chat_id = callback_query.from_user.id
+    user = await get_user_profile(user_chat_id)
+
+    try:
+        shop = await get_shop_by_phone(user["phone_number"])
+
+        if callback_data == "payment_yes":
+            answer = "Да"
+            response_text = "✅ Спасибо! Ваш ответ записан: получили оплату"
+        elif callback_data == "payment_no":
+            answer = "Нет"
+            response_text = "❌ Ваш ответ записан: не получили оплату"
+
+        now = datetime.now(timezone.utc)
+        current_month = now.month
+        current_year = now.year
+        await save_report(shop["id"], answer)
+        logger.info(
+            f"Создан новый отчет  для магазина {shop['shop_name']} за {current_month}/{current_year}: {answer}"
+        )
+
+        await callback_query.message.edit_text(text=response_text, reply_markup=None)
+
+        await callback_query.answer()
+
+    except Exception as e:
+        await callback_query.answer("Произошла ошибка при записи ответа")
+        logger.error(f"Ошибка при обработке ответа от {user_chat_id}: {e}")
+
+
 @router.message()
 async def unknown_message(message: Message, state: FSMContext):
     user = await get_user_profile(message.from_user.id)
@@ -292,7 +322,6 @@ async def unknown_message(message: Message, state: FSMContext):
         await state.set_state(UserState.unauthorized)
     else:
         await message.answer(
-            "Я понимаю только фотографии и специальные команды. "
-            "Отправьте фото или воспользуйтесь кнопками меню.",
+            "Я понимаю только фотографии и специальные команды. Отправьте фото или воспользуйтесь кнопками меню.",
             reply_markup=get_main_keyboard(),
         )

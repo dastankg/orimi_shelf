@@ -1,3 +1,5 @@
+version: '3.9'
+
 services:
   redis:
     image: redis:alpine
@@ -7,6 +9,8 @@ services:
       - "6379:6379"
     env_file:
       - .env
+
+
   bot:
     build: .
     container_name: orimi-bot
