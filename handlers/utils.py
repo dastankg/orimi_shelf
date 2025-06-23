@@ -93,6 +93,7 @@ async def save_user_profile(telegram_id: int, phone_number: str) -> bool:
 def check_photo_creation_time(file_path):
     try:
         file_extension = os.path.splitext(file_path.lower())[1]
+        user_timezone = pytz.timezone('Asia/Bishkek')
 
         if file_extension == ".heic":
             metadata = get_heic_metadata(file_path)
@@ -116,9 +117,11 @@ def check_photo_creation_time(file_path):
                 return False
 
             year, month, day, hour, minute, second = map(int, match.groups())
-            photo_time = datetime(year, month, day, hour, minute, second)
-            user_timezone = pytz.timezone('Asia/Bishkek')
+            photo_time_naive = datetime(year, month, day, hour, minute, second)
+            photo_time = user_timezone.localize(photo_time_naive)
+
             current_time = datetime.now(user_timezone)
+
             time_diff = current_time - photo_time
 
             return time_diff <= timedelta(minutes=5)
@@ -135,9 +138,11 @@ def check_photo_creation_time(file_path):
 
                 if "0th" in exif_dict and piexif.ImageIFD.DateTime in exif_dict["0th"]:
                     date_time_str = exif_dict["0th"][piexif.ImageIFD.DateTime].decode("utf-8")
-                    photo_time = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
+                    photo_time_naive = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
+                    photo_time = user_timezone.localize(photo_time_naive)
 
-                    current_time = datetime.now()
+                    current_time = datetime.now(user_timezone)
+
                     time_diff = current_time - photo_time
 
                     return time_diff <= timedelta(minutes=5)
