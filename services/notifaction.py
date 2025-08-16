@@ -47,6 +47,19 @@ async def send_monthly_notification(bot):
             logger.error("Ошибка при отправке опроса")
 
 
+async def send_weekly_notification(bot):
+    message = "Напоминание: Отправьте, пожалуйста, фото полки ОРИМИ КР. \n Эскертүү: ОРИМИ КРдин текчесинин сүрөтүн жөнөтүп коесузбу, сураныч."
+
+    telephones = await fetch_owner_telephones()
+    for telephone in telephones:
+        try:
+            chat_id = telephone.get("chat_id", None)
+            if chat_id:
+                await bot.send_message(chat_id=chat_id, text=message)
+        except Exception:
+            logger.error("Ошибка при отправке еженедельного уведомления")
+
+
 def setup_scheduler(bot):
     scheduler = AsyncIOScheduler(timezone=pytz.timezone("Asia/Bishkek"))
 
@@ -56,5 +69,11 @@ def setup_scheduler(bot):
         kwargs={"bot": bot},
     )
 
-    logger.info("Планировщик настроен для отправки ежемесячных уведомлений")
+    scheduler.add_job(
+        send_weekly_notification,
+        CronTrigger(day_of_week="mon", hour="9", minute="0"),
+        kwargs={"bot": bot},
+    )
+
+    logger.info("Планировщик настроен для отправки ежемесячных и еженедельных уведомлений")
     return scheduler
