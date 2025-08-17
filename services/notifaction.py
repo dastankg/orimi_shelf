@@ -71,7 +71,7 @@ def setup_scheduler(bot):
 
     scheduler.add_job(
         send_weekly_notification,
-        CronTrigger(day_of_week="mon", hour="16", minute="0"),
+        CronTrigger(day_of_week="mon", hour="10", minute="0"),
         kwargs={"bot": bot},
     )
 
