@@ -28,7 +28,7 @@ async def fetch_owner_telephones():
 
 
 async def send_monthly_notification(bot):
-    message = "🔔 Сегодня первое число месяца\nВы получили оплату за прошлый месяц?"
+    message = "🔔 Вы получили оплату за прошлый месяц?"
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
