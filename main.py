@@ -2,7 +2,6 @@ import asyncio
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
-from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 
 from config.config import load_config
@@ -19,7 +18,6 @@ async def main():
 
     bot = Bot(
         token=config.tg_bot.token,
-        session=AiohttpSession(proxy=config.tg_bot.proxy),
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     await set_menu(bot)

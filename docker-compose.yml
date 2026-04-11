@@ -10,9 +10,12 @@ services:
 
 
   bot:
-    build: .
+    build:
+     context: .
+     network: host
+    network_mode: host
     container_name: orimi-bot
     depends_on:
       - redis
     env_file:
-      - .env
+      - .env   
