@@ -9,6 +9,7 @@ load_dotenv()
 @dataclass
 class TgBot:
     token: str
+    proxy: str | None = None
 
 
 @dataclass
@@ -24,10 +25,12 @@ class Config:
     tg_bot: TgBot
     redis: RedisConfig
 
-
 def load_config(path: str | None = None) -> Config:
     return Config(
-        tg_bot=TgBot(token=os.getenv("SECRET_KEY")),
+        tg_bot=TgBot(
+            token=os.getenv("SECRET_KEY"),
+            proxy=os.getenv("BOT_PROXY"),
+        ),
         redis=RedisConfig(
             redis_host=os.getenv("REDIS_HOST"),
             redis_port=int(os.getenv("REDIS_PORT")),
